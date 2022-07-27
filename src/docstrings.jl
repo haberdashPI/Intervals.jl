@@ -42,62 +42,62 @@ effectively infinite).
 :Unbounded
 
 """
-    LeftEndpoint <: Endpoint
+    LowerBound <: Endpoint
 
 Represents the lower endpoint of an `AbstractInterval`. Useful for comparing two endpoints
 to each other.
 
 ### Examples
 
-```jldoctest; setup = :(using Intervals; using Intervals: LeftEndpoint)
-julia> LeftEndpoint(Interval(0.0, 1.0))
+```jldoctest; setup = :(using Intervals; using Intervals: LowerBound)
+julia> LowerBound(Interval(0.0, 1.0))
 Intervals.Endpoint{Float64, Intervals.Direction{:Left}(), Closed}(0.0)
 
-julia> LeftEndpoint{Closed}(1.0)
+julia> LowerBound{Closed}(1.0)
 Intervals.Endpoint{Float64, Intervals.Direction{:Left}(), Closed}(1.0)
 
-julia> LeftEndpoint{Closed}(1) < LeftEndpoint{Closed}(2)
+julia> LowerBound{Closed}(1) < LowerBound{Closed}(2)
 true
 
-julia> LeftEndpoint{Closed}(0) < LeftEndpoint{Open}(0)
+julia> LowerBound{Closed}(0) < LowerBound{Open}(0)
 true
 
-julia> LeftEndpoint{Open}(0) <= LeftEndpoint{Closed}(0)
+julia> LowerBound{Open}(0) <= LowerBound{Closed}(0)
 false
 ```
 
-See also: [`RightEndpoint`](@ref)
+See also: [`UpperBound`](@ref)
 """
-:LeftEndpoint
+:LowerBound
 
 """
-    RightEndpoint <: Endpoint
+    UpperBound <: Endpoint
 
 Represents the upper endpoint of an `AbstractInterval`. Useful for comparing two endpoints
 to each other.
 
 ### Examples
 
-```jldoctest; setup = :(using Intervals; using Intervals: RightEndpoint)
-julia> RightEndpoint(Interval(0.0, 1.0))
+```jldoctest; setup = :(using Intervals; using Intervals: UpperBound)
+julia> UpperBound(Interval(0.0, 1.0))
 Intervals.Endpoint{Float64, Intervals.Direction{:Right}(), Closed}(1.0)
 
-julia> RightEndpoint{Closed}(1.0)
+julia> UpperBound{Closed}(1.0)
 Intervals.Endpoint{Float64, Intervals.Direction{:Right}(), Closed}(1.0)
 
-julia> RightEndpoint{Closed}(1) < RightEndpoint{Closed}(2)
+julia> UpperBound{Closed}(1) < UpperBound{Closed}(2)
 true
 
-julia> RightEndpoint{Open}(0) < RightEndpoint{Closed}(0)
+julia> UpperBound{Open}(0) < UpperBound{Closed}(0)
 true
 
-julia> RightEndpoint{Closed}(0) <= RightEndpoint{Open}(0)
+julia> UpperBound{Closed}(0) <= UpperBound{Open}(0)
 false
 ```
 
-See also: [`LeftEndpoint`](@ref)
+See also: [`LowerBound`](@ref)
 """
-:RightEndpoint
+:UpperBound
 
 """
     first(interval::AbstractInterval{T}) -> Union{T,Nothing}

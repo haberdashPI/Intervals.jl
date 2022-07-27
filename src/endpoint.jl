@@ -27,14 +27,14 @@ end
 
 Endpoint{T,D,B}(ep) where {T, D, B <: Bounded} = Endpoint{T,D,B}(convert(T, ep))
 
-const LeftEndpoint{T,B} = Endpoint{T, Left, B} where {T,B <: Bound}
-const RightEndpoint{T,B} = Endpoint{T, Right, B} where {T,B <: Bound}
+const LowerBound{T,B} = Endpoint{T, Left, B} where {T,B <: Bound}
+const UpperBound{T,B} = Endpoint{T, Right, B} where {T,B <: Bound}
 
-LeftEndpoint{B}(ep::T) where {T,B} = LeftEndpoint{T,B}(ep)
-RightEndpoint{B}(ep::T) where {T,B} = RightEndpoint{T,B}(ep)
+LowerBound{B}(ep::T) where {T,B} = LowerBound{T,B}(ep)
+UpperBound{B}(ep::T) where {T,B} = UpperBound{T,B}(ep)
 
-LeftEndpoint(i::AbstractInterval{T,L,R}) where {T,L,R} = LeftEndpoint{T,L}(L !== Unbounded ? first(i) : nothing)
-RightEndpoint(i::AbstractInterval{T,L,R}) where {T,L,R} = RightEndpoint{T,R}(R !== Unbounded ? last(i) : nothing)
+LowerBound(i::AbstractInterval{T,L,R}) where {T,L,R} = LowerBound{T,L}(L !== Unbounded ? first(i) : nothing)
+UpperBound(i::AbstractInterval{T,L,R}) where {T,L,R} = UpperBound{T,R}(R !== Unbounded ? last(i) : nothing)
 
 endpoint(x::Endpoint) = isbounded(x) ? x.endpoint : nothing
 bound_type(x::Endpoint{T,D,B}) where {T,D,B} = B
@@ -72,10 +72,10 @@ values that are above that point.
 
 Visualizing two contiguous intervals can assist in understanding this logic:
 
-    [x..y][y..z] -> RightEndpoint == LeftEndpoint
-    [x..y)[y..z] -> RightEndpoint != LeftEndpoint
-    [x..y](y..z] -> RightEndpoint != LeftEndpoint
-    [x..y)(y..z] -> RightEndpoint != LeftEndpoint
+    [x..y][y..z] -> UpperBound == LowerBound
+    [x..y)[y..z] -> UpperBound != LowerBound
+    [x..y](y..z] -> UpperBound != LowerBound
+    [x..y)(y..z] -> UpperBound != LowerBound
 """
 function Base.:(==)(a::Endpoint, b::Endpoint)
     return (
@@ -84,11 +84,11 @@ function Base.:(==)(a::Endpoint, b::Endpoint)
     )
 end
 
-function Base.:(==)(a::LeftEndpoint, b::RightEndpoint)
+function Base.:(==)(a::LowerBound, b::UpperBound)
     a.endpoint == b.endpoint && isclosed(a) && isclosed(b)
 end
 
-function Base.:(==)(a::RightEndpoint, b::LeftEndpoint)
+function Base.:(==)(a::UpperBound, b::LowerBound)
     b == a
 end
 
@@ -99,15 +99,15 @@ function Base.isequal(a::Endpoint, b::Endpoint)
     )
 end
 
-function Base.isequal(a::LeftEndpoint, b::RightEndpoint)
+function Base.isequal(a::LowerBound, b::UpperBound)
     isequal(a.endpoint, b.endpoint) && isclosed(a) && isclosed(b)
 end
 
-function Base.isequal(a::RightEndpoint, b::LeftEndpoint)
+function Base.isequal(a::UpperBound, b::LowerBound)
     isequal(b, a)
 end
 
-function Base.isless(a::LeftEndpoint, b::LeftEndpoint)
+function Base.isless(a::LowerBound, b::LowerBound)
     return (
         !isunbounded(b) && (
             isunbounded(a) ||
@@ -117,7 +117,7 @@ function Base.isless(a::LeftEndpoint, b::LeftEndpoint)
     )
 end
 
-function Base.isless(a::RightEndpoint, b::RightEndpoint)
+function Base.isless(a::UpperBound, b::UpperBound)
     return (
         !isunbounded(a) && (
             isunbounded(b) ||
@@ -127,7 +127,7 @@ function Base.isless(a::RightEndpoint, b::RightEndpoint)
     )
 end
 
-function Base.isless(a::LeftEndpoint, b::RightEndpoint)
+function Base.isless(a::LowerBound, b::UpperBound)
     return (
         isunbounded(a) ||
         isunbounded(b) ||
@@ -135,7 +135,7 @@ function Base.isless(a::LeftEndpoint, b::RightEndpoint)
     )
 end
 
-function Base.isless(a::RightEndpoint, b::LeftEndpoint)
+function Base.isless(a::UpperBound, b::LowerBound)
     return (
         !isunbounded(a) && !isunbounded(b) &&
         (
@@ -149,7 +149,7 @@ end
 Base.:(==)(a, b::Endpoint) = a == b.endpoint && isclosed(b)
 Base.:(==)(a::Endpoint, b) = b == a
 
-function Base.isless(a, b::LeftEndpoint)
+function Base.isless(a, b::LowerBound)
     return (
         !isunbounded(b) && (
             a < b.endpoint ||
@@ -158,7 +158,7 @@ function Base.isless(a, b::LeftEndpoint)
     )
 end
 
-function Base.isless(a::RightEndpoint, b)
+function Base.isless(a::UpperBound, b)
     return (
         !isunbounded(a) &&
         (
@@ -168,5 +168,5 @@ function Base.isless(a::RightEndpoint, b)
     )
 end
 
-Base.isless(a, b::RightEndpoint) = isunbounded(b) || a < b.endpoint
-Base.isless(a::LeftEndpoint, b)  = isunbounded(a) || a.endpoint < b
+Base.isless(a, b::UpperBound) = isunbounded(b) || a < b.endpoint
+Base.isless(a::LowerBound, b)  = isunbounded(a) || a.endpoint < b

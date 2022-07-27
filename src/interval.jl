@@ -120,15 +120,15 @@ Interval(interval::AbstractInterval) = convert(Interval, interval)
 Interval{T}(interval::AbstractInterval) where T = convert(Interval{T}, interval)
 
 # Endpoint constructors
-function Interval{T}(left::LeftEndpoint{T,L}, right::RightEndpoint{T,R}) where {T,L,R}
+function Interval{T}(left::LowerBound{T,L}, right::UpperBound{T,R}) where {T,L,R}
     Interval{T,L,R}(endpoint(left), endpoint(right))
 end
 
-function Interval{T}(left::LeftEndpoint, right::RightEndpoint) where T
+function Interval{T}(left::LowerBound, right::UpperBound) where T
     Interval{T, bound_type(left), bound_type(right)}(endpoint(left), endpoint(right))
 end
 
-function Interval(left::LeftEndpoint{S}, right::RightEndpoint{T}) where {S,T}
+function Interval(left::LowerBound{S}, right::UpperBound{T}) where {S,T}
     Interval{promote_type(S, T)}(left, right)
 end
 
@@ -143,8 +143,8 @@ end
 Base.copy(x::T) where T <: Interval = T(x.first, x.last)
 
 function Base.hash(interval::AbstractInterval, h::UInt)
-    h = hash(LeftEndpoint(interval), h)
-    h = hash(RightEndpoint(interval), h)
+    h = hash(LowerBound(interval), h)
+    h = hash(UpperBound(interval), h)
     return h
 end
 
@@ -288,29 +288,29 @@ Base.:-(a::Interval{T,L,R}) where {T,L,R} = Interval{T,R,L}(-last(a), -first(a))
 ##### EQUALITY #####
 
 function Base.:(==)(a::AbstractInterval, b::AbstractInterval)
-    return LeftEndpoint(a) == LeftEndpoint(b) && RightEndpoint(a) == RightEndpoint(b)
+    return LowerBound(a) == LowerBound(b) && UpperBound(a) == UpperBound(b)
 end
 
 function Base.isequal(a::AbstractInterval, b::AbstractInterval)
-    le = isequal(LeftEndpoint(a), LeftEndpoint(b))
-    re = isequal(RightEndpoint(a), RightEndpoint(b))
+    le = isequal(LowerBound(a), LowerBound(b))
+    re = isequal(UpperBound(a), UpperBound(b))
     return le && re
 end
 
 # While it might be convincingly argued that this should define < instead of isless (see
 # https://github.com/invenia/Intervals.jl/issues/14), this breaks sort.
-Base.isless(a::AbstractInterval, b) = LeftEndpoint(a) < b
-Base.isless(a, b::AbstractInterval) = a < LeftEndpoint(b)
+Base.isless(a::AbstractInterval, b) = LowerBound(a) < b
+Base.isless(a, b::AbstractInterval) = a < LowerBound(b)
 
-less_than_disjoint(a::AbstractInterval, b) = RightEndpoint(a) < b
-less_than_disjoint(a, b::AbstractInterval) = a < LeftEndpoint(b)
+less_than_disjoint(a::AbstractInterval, b) = UpperBound(a) < b
+less_than_disjoint(a, b::AbstractInterval) = a < LowerBound(b)
 
 function Base.:isless(a::AbstractInterval, b::AbstractInterval)
-    return LeftEndpoint(a) < LeftEndpoint(b)
+    return LowerBound(a) < LowerBound(b)
 end
 
 function less_than_disjoint(a::AbstractInterval, b::AbstractInterval)
-    return RightEndpoint(a) < LeftEndpoint(b)
+    return UpperBound(a) < LowerBound(b)
 end
 
 greater_than_disjoint(a, b) = less_than_disjoint(b, a)
@@ -353,7 +353,7 @@ true
 
 ##### SET OPERATIONS #####
 
-Base.isempty(i::AbstractInterval) = LeftEndpoint(i) > RightEndpoint(i)
+Base.isempty(i::AbstractInterval) = LowerBound(i) > UpperBound(i)
 Base.in(a, b::AbstractInterval) = !(a ≫ b || a ≪ b)
 
 function Base.in(a::AbstractInterval, b::AbstractInterval)
@@ -362,26 +362,26 @@ function Base.in(a::AbstractInterval, b::AbstractInterval)
 end
 
 function Base.issubset(a::AbstractInterval, b::AbstractInterval)
-    return LeftEndpoint(a) ≥ LeftEndpoint(b) && RightEndpoint(a) ≤ RightEndpoint(b)
+    return LowerBound(a) ≥ LowerBound(b) && UpperBound(a) ≤ UpperBound(b)
 end
 
 function Base.isdisjoint(a::AbstractInterval, b::AbstractInterval)
-    return RightEndpoint(a) < LeftEndpoint(b) || LeftEndpoint(a) > RightEndpoint(b)
+    return UpperBound(a) < LowerBound(b) || LowerBound(a) > UpperBound(b)
 end
 
 Base.:⊈(a::AbstractInterval, b::AbstractInterval) = !issubset(a, b)
 Base.:⊉(a::AbstractInterval, b::AbstractInterval) = !issubset(b, a)
 
 function overlaps(a::AbstractInterval, b::AbstractInterval)
-    left = max(LeftEndpoint(a), LeftEndpoint(b))
-    right = min(RightEndpoint(a), RightEndpoint(b))
+    left = max(LowerBound(a), LowerBound(b))
+    right = min(UpperBound(a), UpperBound(b))
 
     return left <= right
 end
 
 function contiguous(a::AbstractInterval, b::AbstractInterval)
-    left = max(LeftEndpoint(a), LeftEndpoint(b))
-    right = min(RightEndpoint(a), RightEndpoint(b))
+    left = max(LowerBound(a), LowerBound(b))
+    right = min(UpperBound(a), UpperBound(b))
 
     return (
         !isunbounded(right) && !isunbounded(left) &&
@@ -391,16 +391,16 @@ end
 
 function Base.intersect(a::AbstractInterval{T}, b::AbstractInterval{T}) where T
     !overlaps(a,b) && return Interval{T}()
-    left = max(LeftEndpoint(a), LeftEndpoint(b))
-    right = min(RightEndpoint(a), RightEndpoint(b))
+    left = max(LowerBound(a), LowerBound(b))
+    right = min(UpperBound(a), UpperBound(b))
 
     return Interval{T}(left, right)
 end
 
 function Base.intersect(a::AbstractInterval{S}, b::AbstractInterval{T}) where {S,T}
     !overlaps(a, b) && return Interval{promote_type(S, T)}()
-    left = max(LeftEndpoint(a), LeftEndpoint(b))
-    right = min(RightEndpoint(a), RightEndpoint(b))
+    left = max(LowerBound(a), LowerBound(b))
+    right = min(UpperBound(a), UpperBound(b))
 
     return Interval(left, right)
 end
@@ -410,8 +410,8 @@ function Base.merge(a::AbstractInterval, b::AbstractInterval)
         throw(ArgumentError("$a and $b are neither overlapping or contiguous."))
     end
 
-    left = min(LeftEndpoint(a), LeftEndpoint(b))
-    right = max(RightEndpoint(a), RightEndpoint(b))
+    left = min(LowerBound(a), LowerBound(b))
+    right = max(UpperBound(a), UpperBound(b))
     return Interval(left, right)
 end
 
