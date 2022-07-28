@@ -4,7 +4,7 @@ Inclusivity(args...) = @test_deprecated Intervals.Inclusivity(args...)
     @testset "constructor" begin
         for (s, f) in [(false, false), (false, true), (true, false), (true, true)]
             inc = Inclusivity(s, f)
-            @test (first(inc), last(inc)) == (s, f)
+            @test (lowerbound(inc), upperbound(inc)) == (s, f)
         end
 
         @test Inclusivity(0) == Inclusivity(false, false)
@@ -15,20 +15,20 @@ Inclusivity(args...) = @test_deprecated Intervals.Inclusivity(args...)
 
     @testset "accessors" begin
         inc = Inclusivity(false, false)
-        @test !first(inc)
-        @test !last(inc)
+        @test !lowerbound(inc)
+        @test !upperbound(inc)
         @test isopen(inc)
         @test !isclosed(inc)
 
         inc = Inclusivity(false, true)
-        @test !first(inc)
-        @test last(inc)
+        @test !lowerbound(inc)
+        @test upperbound(inc)
         @test !isopen(inc)
         @test !isclosed(inc)
 
         inc = Inclusivity(true, true)
-        @test first(inc)
-        @test last(inc)
+        @test lowerbound(inc)
+        @test upperbound(inc)
         @test !isopen(inc)
         @test isclosed(inc)
     end
@@ -61,12 +61,12 @@ Inclusivity(args...) = @test_deprecated Intervals.Inclusivity(args...)
         @test sprint(show, inc) == "$(Intervals.Inclusivity)(false, false)"
 
         inc = Inclusivity(false, true)
-        @test string(inc) == "Inclusivity (Right]"
+        @test string(inc) == "Inclusivity (Upper]"
         @test sprint(show, inc, context=:compact=>true) == string(inc)
         @test sprint(show, inc) == "$(Intervals.Inclusivity)(false, true)"
 
         inc = Inclusivity(true, false)
-        @test string(inc) == "Inclusivity [Left)"
+        @test string(inc) == "Inclusivity [Lower)"
         @test sprint(show, inc, context=:compact=>true) == string(inc)
         @test sprint(show, inc) == "$(Intervals.Inclusivity)(true, false)"
 

@@ -1,50 +1,50 @@
-struct Direction{T} end
+struct Side{T} end
 
-const Left = Direction{:Left}()
-const Right = Direction{:Right}()
+const Lower = Side{:Lower}()
+const Upper = Side{:Upper}()
 
-const Beginning = Left
-const Ending = Right
+const Beginning = Lower
+const Ending = Upper
 
-abstract type AbstractEndpoint end
-struct Endpoint{T, D, B <: Bound} <: AbstractEndpoint
+abstract type AbstractBound end
+struct Bound{T, D, B <: Boundedness} <: AbstractBound
     endpoint::T
 
-    function Endpoint{T,D,B}(ep::T) where {T, D, B <: Bounded}
-        @assert D isa Direction
+    function Bound{T,D,B}(ep::T) where {T, D, B <: Bounded}
+        @assert D isa Side
         new{T,D,B}(ep)
     end
 
-    function Endpoint{T,D,B}(ep::Nothing) where {T, D, B <: Unbounded}
-        @assert D isa Direction
+    function Bound{T,D,B}(ep::Nothing) where {T, D, B <: Unbounded}
+        @assert D isa Side
         new{T,D,B}()
     end
 
-    function Endpoint{T,D,B}(ep::Nothing) where {T, D, B <: Bounded}
-        throw(MethodError(Endpoint{T,D,B}, (ep,)))
+    function Bound{T,D,B}(ep::Nothing) where {T, D, B <: Bounded}
+        throw(MethodError(Bound{T,D,B}, (ep,)))
     end
 end
 
-Endpoint{T,D,B}(ep) where {T, D, B <: Bounded} = Endpoint{T,D,B}(convert(T, ep))
+Bound{T,D,B}(ep) where {T, D, B <: Bounded} = Bound{T,D,B}(convert(T, ep))
 
-const LowerBound{T,B} = Endpoint{T, Left, B} where {T,B <: Bound}
-const UpperBound{T,B} = Endpoint{T, Right, B} where {T,B <: Bound}
+const LowerBound{T,B} = Bound{T, Lower, B} where {T,B <: Boundedness}
+const UpperBound{T,B} = Bound{T, Upper, B} where {T,B <: Boundedness}
 
 LowerBound{B}(ep::T) where {T,B} = LowerBound{T,B}(ep)
 UpperBound{B}(ep::T) where {T,B} = UpperBound{T,B}(ep)
 
-LowerBound(i::AbstractInterval{T,L,R}) where {T,L,R} = LowerBound{T,L}(L !== Unbounded ? first(i) : nothing)
-UpperBound(i::AbstractInterval{T,L,R}) where {T,L,R} = UpperBound{T,R}(R !== Unbounded ? last(i) : nothing)
+LowerBound(i::AbstractInterval{T,L,U}) where {T,L,U} = LowerBound{T,L}(L !== Unbounded ? lowerbound(i) : nothing)
+UpperBound(i::AbstractInterval{T,L,U}) where {T,L,U} = UpperBound{T,U}(U !== Unbounded ? upperbound(i) : nothing)
 
-endpoint(x::Endpoint) = isbounded(x) ? x.endpoint : nothing
-bound_type(x::Endpoint{T,D,B}) where {T,D,B} = B
+endpoint(x::Bound) = isbounded(x) ? x.endpoint : nothing
+bound_type(x::Bound{T,D,B}) where {T,D,B} = B
 
-isclosed(x::Endpoint) = bound_type(x) === Closed
-isunbounded(x::Endpoint) = bound_type(x) === Unbounded
-isbounded(x::Endpoint) = bound_type(x) !== Unbounded
+isclosed(x::Bound) = bound_type(x) === Closed
+isunbounded(x::Bound) = bound_type(x) === Unbounded
+isbounded(x::Bound) = bound_type(x) !== Unbounded
 
-function Base.hash(x::Endpoint{T,D,B}, h::UInt) where {T,D,B}
-    h = hash(:Endpoint, h)
+function Base.hash(x::Bound{T,D,B}, h::UInt) where {T,D,B}
+    h = hash(:Bound, h)
     h = hash(D, h)
     h = hash(B, h)
 
@@ -56,18 +56,18 @@ function Base.hash(x::Endpoint{T,D,B}, h::UInt) where {T,D,B}
     return h
 end
 
-Base.broadcastable(e::Endpoint) = Ref(e)
+Base.broadcastable(e::Bound) = Ref(e)
 
 """
-    ==(a::Endpoint, b::Endpoint) -> Bool
+    ==(a::Bound, b::Bound) -> Bool
 
-Determine if two endpoints are equal. When both endpoints are left or right then the points
+Determine if two endpoints are equal. When both endpoints are lower or upper then the points
 and inclusiveness must be the same.
 
-Checking the equality of left-endpoint and a right-endpoint is slightly more difficult. A
-left-endpoint and a right-endpoint are only equal when they use the same point and are
-both included. Note that left/right endpoints which are both not included are not equal
-as the left-endpoint contains values below that point while the right-endpoint only contains
+Checking the equality of lower-endpoint and a upper-endpoint is slightly more difficult. A
+lower-endpoint and a upper-endpoint are only equal when they use the same point and are
+both included. Note that lower/upper endpoints which are both not included are not equal
+as the lower-endpoint contains values below that point while the upper-endpoint only contains
 values that are above that point.
 
 Visualizing two contiguous intervals can assist in understanding this logic:
@@ -77,7 +77,7 @@ Visualizing two contiguous intervals can assist in understanding this logic:
     [x..y](y..z] -> UpperBound != LowerBound
     [x..y)(y..z] -> UpperBound != LowerBound
 """
-function Base.:(==)(a::Endpoint, b::Endpoint)
+function Base.:(==)(a::Bound, b::Bound)
     return (
         isunbounded(a) && isunbounded(b) ||
         a.endpoint == b.endpoint && bound_type(a) == bound_type(b)
@@ -92,7 +92,7 @@ function Base.:(==)(a::UpperBound, b::LowerBound)
     b == a
 end
 
-function Base.isequal(a::Endpoint, b::Endpoint)
+function Base.isequal(a::Bound, b::Bound)
     return (
         isunbounded(a) && isunbounded(b) ||
         isequal(a.endpoint, b.endpoint) && isequal(bound_type(a), bound_type(b))
@@ -145,9 +145,9 @@ function Base.isless(a::UpperBound, b::LowerBound)
     )
 end
 
-# Comparisons between Scalars and Endpoints
-Base.:(==)(a, b::Endpoint) = a == b.endpoint && isclosed(b)
-Base.:(==)(a::Endpoint, b) = b == a
+# Comparisons between Scalars and Bounds
+Base.:(==)(a, b::Bound) = a == b.endpoint && isclosed(b)
+Base.:(==)(a::Bound, b) = b == a
 
 function Base.isless(a, b::LowerBound)
     return (

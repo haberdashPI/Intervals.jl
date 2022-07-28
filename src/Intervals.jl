@@ -10,22 +10,22 @@ using Dates: AbstractDateTime, value, coarserperiod
 
 import Base: ⊆, ⊇, ⊈, ⊉, union, union!, merge
 
-abstract type Bound end
-abstract type Bounded <: Bound end
+abstract type Boundedness end
+abstract type Bounded <: Boundedness end
 struct Closed <: Bounded end
 struct Open <: Bounded end
-struct Unbounded <: Bound end
+struct Unbounded <: Boundedness end
 
 bound_type(x::Bool) = x ? Closed : Open
 
-abstract type AbstractInterval{T, L <: Bound, R <: Bound} end
+abstract type AbstractInterval{T, L <: Boundedness, U <: Boundedness} end
 
 Base.eltype(::AbstractInterval{T}) where {T} = T
 Base.broadcastable(x::AbstractInterval) = Ref(x)
-bounds_types(x::AbstractInterval{T,L,R}) where {T,L,R} = (L, R)
+boundedness(x::AbstractInterval{T,L,U}) where {T,L,U} = (L, U)
 
 include("isfinite.jl")
-include("endpoint.jl")
+include("bounds.jl")
 include("interval.jl")
 include("interval_sets.jl")
 include("anchoredinterval.jl")
@@ -36,7 +36,7 @@ include("docstrings.jl")
 include("deprecated.jl")
 include("compat.jl")
 
-export Bound,
+export Boundedness,
        Closed,
        Open,
        Unbounded,
@@ -48,10 +48,10 @@ export Bound,
        HourBeginning,
        HE,
        HB,
-       first,
-       last,
+       lowerbound,
+       upperbound,
        span,
-       bounds_types,
+       boundedness,
        isclosed,
        anchor,
        merge,

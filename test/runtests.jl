@@ -14,7 +14,7 @@ include("test_utils.jl")
 
 @testset "Intervals" begin
     include("inclusivity.jl")
-    include("endpoint.jl")
+    include("bound.jl")
     include("interval.jl")
     include("anchoredinterval.jl")
     include("comparisons.jl")

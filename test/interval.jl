@@ -6,7 +6,7 @@
         (Date(2013, 2, 13), Date(2013, 3, 13), Day(1)),
         (DateTime(2016, 8, 11, 0, 30), DateTime(2016, 8, 11, 1), Millisecond(1)),
 
-        # Infinite endpoints
+        # Infinite bounds
         (-Inf, 10, 1),
         (10, Inf, 1),
         (-Inf, Inf, 1),
@@ -50,7 +50,7 @@
             @test Interval(a, b) == Interval{T, Closed, Closed}(a, b)
             @test Interval{T}(a, b) == Interval{T, Closed, Closed}(a, b)
             @test Interval{Open, Closed}(a, b) == Interval{T, Open, Closed}(a, b)
-            @test Interval(LeftEndpoint{Closed}(a), RightEndpoint{Closed}(b)) ==
+            @test Interval(LowerBound{Closed}(a), UpperBound{Closed}(b)) ==
                 Interval{T, Closed, Closed}(a, b)
 
             @test Interval(a, nothing) == Interval{T, Closed, Unbounded}(a, nothing)
@@ -123,8 +123,8 @@
         for (a, b, _) in test_values
             for (L, R) in BOUND_PERMUTATIONS
                 interval = Interval{L, R}(a, b)
-                @test first(interval) == a
-                @test last(interval) == b
+                @test lowerbound(interval) == a
+                @test upperbound(interval) == b
                 @test span(interval) == b - a
                 @test isclosed(interval) == (L === Closed && R === Closed)
                 @test isopen(interval) == (L === Open && R === Open)
@@ -132,14 +132,14 @@
         end
 
         # DST transition
-        firstpoint = ZonedDateTime(2018, 3, 11, 1, tz"America/Winnipeg")
-        endpoint = ZonedDateTime(2018, 3, 11, 3, tz"America/Winnipeg")
-        interval = Interval(firstpoint, endpoint)
+        lowerboundpoint = ZonedDateTime(2018, 3, 11, 1, tz"America/Winnipeg")
+        bound = ZonedDateTime(2018, 3, 11, 3, tz"America/Winnipeg")
+        interval = Interval(lowerboundpoint, bound)
         @test span(interval) == Hour(1)
 
-        firstpoint = ZonedDateTime(2018, 11, 4, 0, tz"America/Winnipeg")
-        endpoint = ZonedDateTime(2018, 11, 4, 2, tz"America/Winnipeg")
-        interval = Interval(firstpoint, endpoint)
+        lowerboundpoint = ZonedDateTime(2018, 11, 4, 0, tz"America/Winnipeg")
+        bound = ZonedDateTime(2018, 11, 4, 2, tz"America/Winnipeg")
+        interval = Interval(lowerboundpoint, bound)
         @test span(interval) == Hour(3)
     end
 
@@ -150,10 +150,10 @@
             # If the interal is empty, min is nothing
             isempty(interval) && return nothing
 
-            # If a is in the interval, it is closed/unbounded and min is the first value.
+            # If a is in the interval, it is closed/unbounded and min is the lowerbound value.
             # If a is nothing then it is unbounded and min is typemin(T)
             a === nothing && return typemin(t)
-            a ∈ interval && return first(interval)
+            a ∈ interval && return lowerbound(interval)
 
             # From this point on, b ∉ interval so the bound is Open
             # Also, if a is infinite we return typemin
@@ -162,7 +162,7 @@
             !Intervals.isfinite(a) && t <: AbstractFloat && return nextfloat(a)
             !Intervals.isfinite(a) && return typemin(t)
 
-            f = first(interval)
+            f = lowerbound(interval)
             nv = if t <: AbstractFloat && unit === nothing
                 nextfloat(f)
             else
@@ -180,10 +180,10 @@
             # If the interal is empty, min is nothing
             isempty(interval) && return nothing
 
-            # If a is in the interval, it is closed/unbounded and min is the first value.
+            # If a is in the interval, it is closed/unbounded and min is the lowerbound value.
             # If a is nothing then it is unbounded and min is typemin(T)
             b === nothing && return typemax(t)
-            b ∈ interval && return last(interval)
+            b ∈ interval && return upperbound(interval)
 
             # From this point on, b ∉ interval so the bound is Open
             # Also, if a is infinite we return typemin
@@ -192,7 +192,7 @@
             !isfinite(b) && t <: AbstractFloat && return prevfloat(b)
             !isfinite(b) && return typemax(t)
 
-            l = last(interval)
+            l = upperbound(interval)
             nv = if t <: AbstractFloat && unit === nothing
                 prevfloat(l)
             else
@@ -248,7 +248,7 @@
                 (Interval{Unbounded,Open}(nothing, Inf), nothing),
             ]
             for (interval, unit) in unbounded_test_values
-                a, b = first(interval), last(interval)
+                a, b = lowerbound(interval), upperbound(interval)
 
                 mi = _min_val_helper(interval, a, unit)
                 ma = _max_val_helper(interval, b, unit)
@@ -518,17 +518,17 @@
         end
 
         # DST transition
-        firstpoint = ZonedDateTime(2018, 3, 11, 1, tz"America/Winnipeg")
-        endpoint = ZonedDateTime(2018, 3, 11, 3, tz"America/Winnipeg")
-        interval = Interval(firstpoint, endpoint) + Hour(1)
-        @test first(interval) == ZonedDateTime(2018, 3, 11, 3, tz"America/Winnipeg")
-        @test last(interval) == ZonedDateTime(2018, 3, 11, 4, tz"America/Winnipeg")
+        lowerboundpoint = ZonedDateTime(2018, 3, 11, 1, tz"America/Winnipeg")
+        bound = ZonedDateTime(2018, 3, 11, 3, tz"America/Winnipeg")
+        interval = Interval(lowerboundpoint, bound) + Hour(1)
+        @test lowerbound(interval) == ZonedDateTime(2018, 3, 11, 3, tz"America/Winnipeg")
+        @test upperbound(interval) == ZonedDateTime(2018, 3, 11, 4, tz"America/Winnipeg")
 
-        firstpoint = ZonedDateTime(2018, 11, 4, 0, tz"America/Winnipeg")
-        endpoint = ZonedDateTime(2018, 11, 4, 2, tz"America/Winnipeg")
-        interval = Interval(firstpoint, endpoint) + Hour(1)
-        @test first(interval) == ZonedDateTime(2018, 11, 4, 1, tz"America/Winnipeg", 1)
-        @test last(interval) == ZonedDateTime(2018, 11, 4, 3, tz"America/Winnipeg")
+        lowerboundpoint = ZonedDateTime(2018, 11, 4, 0, tz"America/Winnipeg")
+        bound = ZonedDateTime(2018, 11, 4, 2, tz"America/Winnipeg")
+        interval = Interval(lowerboundpoint, bound) + Hour(1)
+        @test lowerbound(interval) == ZonedDateTime(2018, 11, 4, 1, tz"America/Winnipeg", 1)
+        @test upperbound(interval) == ZonedDateTime(2018, 11, 4, 3, tz"America/Winnipeg")
     end
 
     @testset "isempty" begin
@@ -875,19 +875,19 @@
         @testset "test values" begin
             function parser(::Type{Char}, str)
                 @assert length(str) == 1
-                return first(str)
+                return lowerbound(str)
             end
             parser(::Type{T}, str) where T = parse(T, str)
 
-            for (left, right, _) in test_values, (lb, rb) in product(('[', '('), (']', ')'))
-                T = promote_type(typeof(left), typeof(right))
+            for (lower, upper, _) in test_values, (lb, rb) in product(('[', '('), (']', ')'))
+                T = promote_type(typeof(lower), typeof(upper))
 
-                str = "$lb$left .. $right$rb"
+                str = "$lb$lower .. $upper$rb"
                 L = lb == '[' ? Closed : Open
                 R = rb == ']' ? Closed : Open
 
                 result = parse(Interval{T}, str, element_parser=parser)
-                @test result == Interval{T,L,R}(left, right)
+                @test result == Interval{T,L,R}(lower, upper)
             end
         end
     end
@@ -896,18 +896,18 @@
         # `on` keyword is required
         @test_throws UndefKeywordError floor(Interval(0.0, 1.0))
 
-        # only :left and :right are supported
+        # only :lower and :upper are supported
         @test_throws MethodError floor(Interval(0.0, 1.0); on=:nothing)
 
-        @test floor(Interval(0.0, 1.0); on=:left) == Interval(0.0, 1.0)
-        @test floor(Interval(0.5, 1.0); on=:left) == Interval(0.0, 0.5)
-        @test floor(Interval(0.0, 1.5); on=:left) == Interval(0.0, 1.5)
-        @test floor(Interval(0.5, 1.5); on=:left) == Interval(0.0, 1.0)
+        @test floor(Interval(0.0, 1.0); on=:lower) == Interval(0.0, 1.0)
+        @test floor(Interval(0.5, 1.0); on=:lower) == Interval(0.0, 0.5)
+        @test floor(Interval(0.0, 1.5); on=:lower) == Interval(0.0, 1.5)
+        @test floor(Interval(0.5, 1.5); on=:lower) == Interval(0.0, 1.0)
 
-        @test floor(Interval(0.0, 1.0); on=:right) == Interval(0.0, 1.0)
-        @test floor(Interval(0.5, 1.0); on=:right) == Interval(0.5, 1.0)
-        @test floor(Interval(0.0, 1.5); on=:right) == Interval(-0.5, 1.0)
-        @test floor(Interval(0.5, 1.5); on=:right) == Interval(0.0, 1.0)
+        @test floor(Interval(0.0, 1.0); on=:upper) == Interval(0.0, 1.0)
+        @test floor(Interval(0.5, 1.0); on=:upper) == Interval(0.5, 1.0)
+        @test floor(Interval(0.0, 1.5); on=:upper) == Interval(-0.5, 1.0)
+        @test floor(Interval(0.5, 1.5); on=:upper) == Interval(0.0, 1.0)
 
         # :anchor is only usable with AnchoredIntervals
         @test_throws ArgumentError floor(Interval(0.0, 1.0); on=:anchor)
@@ -916,43 +916,43 @@
         interval = Interval(DateTime(2011, 2, 1, 6), DateTime(2011, 2, 2, 18))
         expected = Interval(DateTime(2011, 2, 1), DateTime(2011, 2, 2, 12))
         @test_throws UndefKeywordError floor(interval, Day)
-        @test floor(interval, Day; on=:left) == expected
-        @test floor(interval, Day(1); on=:left) == expected
+        @test floor(interval, Day; on=:lower) == expected
+        @test floor(interval, Day(1); on=:lower) == expected
 
         expected = Interval(DateTime(2011, 1, 31, 12), DateTime(2011, 2, 2))
-        @test floor(interval, Day; on=:right) == expected
-        @test floor(interval, Day(1); on=:right) == expected
+        @test floor(interval, Day; on=:upper) == expected
+        @test floor(interval, Day(1); on=:upper) == expected
 
         # Test unbounded intervals
-        @test floor(Interval{Closed, Unbounded}(0.0, nothing); on=:left) == Interval{Closed, Unbounded}(0.0, nothing)
-        @test floor(Interval{Closed, Unbounded}(0.5, nothing); on=:left) == Interval{Closed, Unbounded}(0.0, nothing)
-        @test floor(Interval{Unbounded, Closed}(nothing, 1.0); on=:left) == Interval{Unbounded, Closed}(nothing, 1.0)
-        @test floor(Interval{Unbounded, Closed}(nothing, 1.5); on=:left) == Interval{Unbounded, Closed}(nothing, 1.5)
-        @test floor(Interval{Unbounded, Unbounded}(nothing, nothing); on=:left) == Interval{Unbounded, Unbounded}(nothing, nothing)
+        @test floor(Interval{Closed, Unbounded}(0.0, nothing); on=:lower) == Interval{Closed, Unbounded}(0.0, nothing)
+        @test floor(Interval{Closed, Unbounded}(0.5, nothing); on=:lower) == Interval{Closed, Unbounded}(0.0, nothing)
+        @test floor(Interval{Unbounded, Closed}(nothing, 1.0); on=:lower) == Interval{Unbounded, Closed}(nothing, 1.0)
+        @test floor(Interval{Unbounded, Closed}(nothing, 1.5); on=:lower) == Interval{Unbounded, Closed}(nothing, 1.5)
+        @test floor(Interval{Unbounded, Unbounded}(nothing, nothing); on=:lower) == Interval{Unbounded, Unbounded}(nothing, nothing)
 
-        @test floor(Interval{Closed, Unbounded}(0.0, nothing); on=:right) == Interval{Closed, Unbounded}(0.0, nothing)
-        @test floor(Interval{Closed, Unbounded}(0.5, nothing); on=:right) == Interval{Closed, Unbounded}(0.5, nothing)
-        @test floor(Interval{Unbounded, Closed}(nothing, 1.0); on=:right) == Interval{Unbounded, Closed}(nothing, 1.0)
-        @test floor(Interval{Unbounded, Closed}(nothing, 1.5); on=:right) == Interval{Unbounded, Closed}(nothing, 1.0)
-        @test floor(Interval{Unbounded, Unbounded}(nothing, nothing); on=:right) == Interval{Unbounded, Unbounded}(nothing, nothing)
+        @test floor(Interval{Closed, Unbounded}(0.0, nothing); on=:upper) == Interval{Closed, Unbounded}(0.0, nothing)
+        @test floor(Interval{Closed, Unbounded}(0.5, nothing); on=:upper) == Interval{Closed, Unbounded}(0.5, nothing)
+        @test floor(Interval{Unbounded, Closed}(nothing, 1.0); on=:upper) == Interval{Unbounded, Closed}(nothing, 1.0)
+        @test floor(Interval{Unbounded, Closed}(nothing, 1.5); on=:upper) == Interval{Unbounded, Closed}(nothing, 1.0)
+        @test floor(Interval{Unbounded, Unbounded}(nothing, nothing); on=:upper) == Interval{Unbounded, Unbounded}(nothing, nothing)
     end
 
     @testset "ceil" begin
         # `on` keyword is required
         @test_throws UndefKeywordError ceil(Interval(0.0, 1.0))
 
-        # only :left and :right are supported
+        # only :lower and :upper are supported
         @test_throws MethodError ceil(Interval(0.0, 1.0); on=:nothing)
 
-        @test ceil(Interval(0.0, 1.0); on=:left) == Interval(0.0, 1.0)
-        @test ceil(Interval(0.5, 1.0); on=:left) == Interval(1.0, 1.5)
-        @test ceil(Interval(0.0, 1.5); on=:left) == Interval(0.0, 1.5)
-        @test ceil(Interval(0.5, 1.5); on=:left) == Interval(1.0, 2.0)
+        @test ceil(Interval(0.0, 1.0); on=:lower) == Interval(0.0, 1.0)
+        @test ceil(Interval(0.5, 1.0); on=:lower) == Interval(1.0, 1.5)
+        @test ceil(Interval(0.0, 1.5); on=:lower) == Interval(0.0, 1.5)
+        @test ceil(Interval(0.5, 1.5); on=:lower) == Interval(1.0, 2.0)
 
-        @test ceil(Interval(0.0, 1.0); on=:right) == Interval(0.0, 1.0)
-        @test ceil(Interval(0.5, 1.0); on=:right) == Interval(0.5, 1.0)
-        @test ceil(Interval(0.0, 1.5); on=:right) == Interval(0.5, 2.0)
-        @test ceil(Interval(0.5, 1.5); on=:right) == Interval(1.0, 2.0)
+        @test ceil(Interval(0.0, 1.0); on=:upper) == Interval(0.0, 1.0)
+        @test ceil(Interval(0.5, 1.0); on=:upper) == Interval(0.5, 1.0)
+        @test ceil(Interval(0.0, 1.5); on=:upper) == Interval(0.5, 2.0)
+        @test ceil(Interval(0.5, 1.5); on=:upper) == Interval(1.0, 2.0)
 
         # :anchor is only usable with AnchoredIntervals
         @test_throws ArgumentError ceil(Interval(0.0, 1.0); on=:anchor)
@@ -961,43 +961,43 @@
         interval = Interval(DateTime(2011, 2, 1, 6), DateTime(2011, 2, 2, 18))
         expected = Interval(DateTime(2011, 2, 2), DateTime(2011, 2, 3, 12))
         @test_throws UndefKeywordError ceil(interval, Day)
-        @test ceil(interval, Day; on=:left) == expected
-        @test ceil(interval, Day(1); on=:left) == expected
+        @test ceil(interval, Day; on=:lower) == expected
+        @test ceil(interval, Day(1); on=:lower) == expected
 
         expected = Interval(DateTime(2011, 2, 1, 12), DateTime(2011, 2, 3))
-        @test ceil(interval, Day; on=:right) == expected
-        @test ceil(interval, Day(1); on=:right) == expected
+        @test ceil(interval, Day; on=:upper) == expected
+        @test ceil(interval, Day(1); on=:upper) == expected
 
         # Test unbounded intervals
-        @test ceil(Interval{Closed, Unbounded}(0.0, nothing); on=:left) == Interval{Closed, Unbounded}(0.0, nothing)
-        @test ceil(Interval{Closed, Unbounded}(0.5, nothing); on=:left) == Interval{Closed, Unbounded}(1.0, nothing)
-        @test ceil(Interval{Unbounded, Closed}(nothing, 1.0); on=:left) == Interval{Unbounded, Closed}(nothing, 1.0)
-        @test ceil(Interval{Unbounded, Closed}(nothing, 1.5); on=:left) == Interval{Unbounded, Closed}(nothing, 1.5)
-        @test ceil(Interval{Unbounded, Unbounded}(nothing, nothing); on=:left) == Interval{Unbounded, Unbounded}(nothing, nothing)
+        @test ceil(Interval{Closed, Unbounded}(0.0, nothing); on=:lower) == Interval{Closed, Unbounded}(0.0, nothing)
+        @test ceil(Interval{Closed, Unbounded}(0.5, nothing); on=:lower) == Interval{Closed, Unbounded}(1.0, nothing)
+        @test ceil(Interval{Unbounded, Closed}(nothing, 1.0); on=:lower) == Interval{Unbounded, Closed}(nothing, 1.0)
+        @test ceil(Interval{Unbounded, Closed}(nothing, 1.5); on=:lower) == Interval{Unbounded, Closed}(nothing, 1.5)
+        @test ceil(Interval{Unbounded, Unbounded}(nothing, nothing); on=:lower) == Interval{Unbounded, Unbounded}(nothing, nothing)
 
-        @test ceil(Interval{Closed, Unbounded}(0.0, nothing); on=:right) == Interval{Closed, Unbounded}(0.0, nothing)
-        @test ceil(Interval{Closed, Unbounded}(0.5, nothing); on=:right) == Interval{Closed, Unbounded}(0.5, nothing)
-        @test ceil(Interval{Unbounded, Closed}(nothing, 1.0); on=:right) == Interval{Unbounded, Closed}(nothing, 1.0)
-        @test ceil(Interval{Unbounded, Closed}(nothing, 1.5); on=:right) == Interval{Unbounded, Closed}(nothing, 2.0)
-        @test ceil(Interval{Unbounded, Unbounded}(nothing, nothing); on=:right) == Interval{Unbounded, Unbounded}(nothing, nothing)
+        @test ceil(Interval{Closed, Unbounded}(0.0, nothing); on=:upper) == Interval{Closed, Unbounded}(0.0, nothing)
+        @test ceil(Interval{Closed, Unbounded}(0.5, nothing); on=:upper) == Interval{Closed, Unbounded}(0.5, nothing)
+        @test ceil(Interval{Unbounded, Closed}(nothing, 1.0); on=:upper) == Interval{Unbounded, Closed}(nothing, 1.0)
+        @test ceil(Interval{Unbounded, Closed}(nothing, 1.5); on=:upper) == Interval{Unbounded, Closed}(nothing, 2.0)
+        @test ceil(Interval{Unbounded, Unbounded}(nothing, nothing); on=:upper) == Interval{Unbounded, Unbounded}(nothing, nothing)
     end
 
     @testset "round" begin
         # `on` keyword is required
         @test_throws UndefKeywordError round(Interval(0.0, 1.0))
 
-        # only :left and :right are supported
+        # only :lower and :upper are supported
         @test_throws MethodError round(Interval(0.0, 1.0); on=:nothing)
 
-        @test round(Interval(0.0, 1.0); on=:left) == Interval(0.0, 1.0)
-        @test round(Interval(0.5, 1.0); on=:left) == Interval(0.0, 0.5)
-        @test round(Interval(0.0, 1.5); on=:left) == Interval(0.0, 1.5)
-        @test round(Interval(0.5, 1.5); on=:left) == Interval(0.0, 1.0)
+        @test round(Interval(0.0, 1.0); on=:lower) == Interval(0.0, 1.0)
+        @test round(Interval(0.5, 1.0); on=:lower) == Interval(0.0, 0.5)
+        @test round(Interval(0.0, 1.5); on=:lower) == Interval(0.0, 1.5)
+        @test round(Interval(0.5, 1.5); on=:lower) == Interval(0.0, 1.0)
 
-        @test round(Interval(0.0, 1.0); on=:right) == Interval(0.0, 1.0)
-        @test round(Interval(0.5, 1.0); on=:right) == Interval(0.5, 1.0)
-        @test round(Interval(0.0, 1.5); on=:right) == Interval(0.5, 2.0)
-        @test round(Interval(0.5, 1.5); on=:right) == Interval(1.0, 2.0)
+        @test round(Interval(0.0, 1.0); on=:upper) == Interval(0.0, 1.0)
+        @test round(Interval(0.5, 1.0); on=:upper) == Interval(0.5, 1.0)
+        @test round(Interval(0.0, 1.5); on=:upper) == Interval(0.5, 2.0)
+        @test round(Interval(0.5, 1.5); on=:upper) == Interval(1.0, 2.0)
 
         # :anchor is only usable with AnchoredIntervals
         @test_throws ArgumentError round(Interval(0.0, 1.0); on=:anchor)
@@ -1006,25 +1006,25 @@
         interval = Interval(DateTime(2011, 2, 1, 6), DateTime(2011, 2, 2, 18))
         expected = Interval(DateTime(2011, 2, 1), DateTime(2011, 2, 2, 12))
         @test_throws UndefKeywordError round(interval, Day)
-        @test round(interval, Day; on=:left) == expected
-        @test round(interval, Day(1); on=:left) == expected
+        @test round(interval, Day; on=:lower) == expected
+        @test round(interval, Day(1); on=:lower) == expected
 
         expected = Interval(DateTime(2011, 2, 1, 12), DateTime(2011, 2, 3))
         @test_throws UndefKeywordError round(interval, Day)
-        @test round(interval, Day; on=:right) == expected
-        @test round(interval, Day(1); on=:right) == expected
+        @test round(interval, Day; on=:upper) == expected
+        @test round(interval, Day(1); on=:upper) == expected
 
         # Test unbounded intervals
-        @test round(Interval{Closed, Unbounded}(0.0, nothing); on=:left) == Interval{Closed, Unbounded}(0.0, nothing)
-        @test round(Interval{Closed, Unbounded}(0.5, nothing); on=:left) == Interval{Closed, Unbounded}(0.0, nothing)
-        @test round(Interval{Unbounded, Closed}(nothing, 1.0); on=:left) == Interval{Unbounded, Closed}(nothing, 1.0)
-        @test round(Interval{Unbounded, Closed}(nothing, 1.5); on=:left) == Interval{Unbounded, Closed}(nothing, 1.5)
-        @test round(Interval{Unbounded, Unbounded}(nothing, nothing); on=:left) == Interval{Unbounded, Unbounded}(nothing, nothing)
+        @test round(Interval{Closed, Unbounded}(0.0, nothing); on=:lower) == Interval{Closed, Unbounded}(0.0, nothing)
+        @test round(Interval{Closed, Unbounded}(0.5, nothing); on=:lower) == Interval{Closed, Unbounded}(0.0, nothing)
+        @test round(Interval{Unbounded, Closed}(nothing, 1.0); on=:lower) == Interval{Unbounded, Closed}(nothing, 1.0)
+        @test round(Interval{Unbounded, Closed}(nothing, 1.5); on=:lower) == Interval{Unbounded, Closed}(nothing, 1.5)
+        @test round(Interval{Unbounded, Unbounded}(nothing, nothing); on=:lower) == Interval{Unbounded, Unbounded}(nothing, nothing)
 
-        @test round(Interval{Closed, Unbounded}(0.0, nothing); on=:right) == Interval{Closed, Unbounded}(0.0, nothing)
-        @test round(Interval{Closed, Unbounded}(0.5, nothing); on=:right) == Interval{Closed, Unbounded}(0.5, nothing)
-        @test round(Interval{Unbounded, Closed}(nothing, 1.0); on=:right) == Interval{Unbounded, Closed}(nothing, 1.0)
-        @test round(Interval{Unbounded, Closed}(nothing, 1.5); on=:right) == Interval{Unbounded, Closed}(nothing, 2.0)
-        @test round(Interval{Unbounded, Unbounded}(nothing, nothing); on=:right) == Interval{Unbounded, Unbounded}(nothing, nothing)
+        @test round(Interval{Closed, Unbounded}(0.0, nothing); on=:upper) == Interval{Closed, Unbounded}(0.0, nothing)
+        @test round(Interval{Closed, Unbounded}(0.5, nothing); on=:upper) == Interval{Closed, Unbounded}(0.5, nothing)
+        @test round(Interval{Unbounded, Closed}(nothing, 1.0); on=:upper) == Interval{Unbounded, Closed}(nothing, 1.0)
+        @test round(Interval{Unbounded, Closed}(nothing, 1.5); on=:upper) == Interval{Unbounded, Closed}(nothing, 2.0)
+        @test round(Interval{Unbounded, Unbounded}(nothing, nothing); on=:upper) == Interval{Unbounded, Unbounded}(nothing, nothing)
     end
 end

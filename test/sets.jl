@@ -3,29 +3,29 @@ using InvertedIndices
 using Random
 using StableRNGs
 
-using Intervals: TrackEachEndpoint, TrackLeftOpen, TrackRightOpen, endpoint_tracking,
+using Intervals: TrackEachBound, TrackLowerOpen, TrackUpperOpen, bound_tracking,
     find_intersections
 
-@testset "Endpoint Tracking" begin
-    @test endpoint_tracking(
+@testset "Bound Tracking" begin
+    @test bound_tracking(
         Interval{Int, Open, Closed},
         Interval{Float64, Open, Closed},
-    ) == TrackLeftOpen{Float64}()
+    ) == TrackLowerOpen{Float64}()
 
-    @test endpoint_tracking(
+    @test bound_tracking(
         Interval{Int, Closed, Open},
         Interval{Float64, Closed, Open},
-    ) == TrackRightOpen{Float64}()
+    ) == TrackUpperOpen{Float64}()
 
     # Fallback tracking for all other bound combinations
-    @test endpoint_tracking(
+    @test bound_tracking(
         Interval{Int, Closed, Closed},
         Interval{Float64, Closed, Closed},
-    ) == TrackEachEndpoint()
+    ) == TrackEachBound()
 end
 
 @testset "Set operations" begin
-    area(x::Interval) = last(x) - first(x)
+    area(x::Interval) = upperbound(x) - lowerbound(x)
     # note: `mapreduce` fails here for empty vectors
     area(x::AbstractVector{<:AbstractInterval{T}}) where T = mapreduce(area, +, x, init=zero(T))
     area(x::IntervalSet) = area(x.items)
@@ -79,16 +79,16 @@ end
         # as the regular f(intervalset, intervalset) methods
         if a isa IntervalSet && b isa IntervalSet
             for f in (intersect, union, setdiff, symdiff, isdisjoint, issubset)
-                # We'll just use the first and last entries as sample intervals for these
+                # We'll just use the lowerbound and upperbound entries as sample intervals for these
                 # tests rather than an exhausting search
-                x = first(a.items)
+                x = lowerbound(a.items)
                 @test f(x, b) == f(IntervalSet([x]), b)
-                x = last(a.items)
+                x = upperbound(a.items)
                 @test f(x, b) == f(IntervalSet([x]), b)
 
-                y = first(b.items)
+                y = lowerbound(b.items)
                 @test f(a, y) == f(a, IntervalSet([y]))
-                y = last(b.items)
+                y = upperbound(b.items)
                 @test f(a, y) == f(a, IntervalSet([y]))
             end
         end
@@ -100,12 +100,12 @@ end
     # a few taylored interval sets
     a = IntervalSet([Interval(i, i + 3) for i in 1:5:15])
     b = IntervalSet(a.items .+ (1:2:5))
-    @test all(x -> first(x) ∈ a, a.items)
+    @test all(x -> lowerbound(x) ∈ a, a.items)
     testsets(a, b)
     testsets(IntervalSet(a.items[1]), b)
     testsets(a, IntervalSet(b.items[1]))
 
-    # verify that `last` need not be ordered
+    # verify that `upperbound` need not be ordered
     intervals = IntervalSet([Interval(0, 5), Interval(0, 3)])
     @test superset(union(intervals)) == Interval(0, 5)
 
@@ -118,45 +118,45 @@ end
 
     a = IntervalSet(Interval.(starts, ends))
     b = IntervalSet(Interval.(starts .+ offsets, ends .+ offsets))
-    @test all(x -> first(x) ∈ a, a.items)
+    @test all(x -> lowerbound(x) ∈ a, a.items)
     testsets(a, b)
-    testsets(IntervalSet(first(a.items)), b)
-    testsets(a, IntervalSet(first(b.items)))
+    testsets(IntervalSet(lowerbound(a.items)), b)
+    testsets(a, IntervalSet(lowerbound(b.items)))
 
     a = IntervalSet(Interval{rand_bound_type(rng), rand_bound_type(rng)}.(starts, ends))
     b = IntervalSet(Interval{rand_bound_type(rng), rand_bound_type(rng)}.(starts .+ offsets, ends .+ offsets))
     testsets(a, b)
-    testsets(IntervalSet(first(a.items)), b)
-    testsets(a, IntervalSet(first(b.items)))
+    testsets(IntervalSet(lowerbound(a.items)), b)
+    testsets(a, IntervalSet(lowerbound(b.items)))
 
     a = IntervalSet(Interval{Closed, Open}.(starts, ends))
     b = IntervalSet(Interval{Closed, Open}.(starts .+ offsets, ends .+ offsets))
-    @test Intervals.endpoint_tracking(a, b) isa Intervals.TrackStatically
-    @test Intervals.endpoint_tracking(IntervalSet(first(a.items)), b) isa Intervals.TrackStatically
-    @test Intervals.endpoint_tracking(a, IntervalSet(first(b.items))) isa Intervals.TrackStatically
+    @test Intervals.bound_tracking(a, b) isa Intervals.TrackStatically
+    @test Intervals.bound_tracking(IntervalSet(lowerbound(a.items)), b) isa Intervals.TrackStatically
+    @test Intervals.bound_tracking(a, IntervalSet(lowerbound(b.items))) isa Intervals.TrackStatically
     testsets(a, b)
-    testsets(IntervalSet(first(a.items)), b)
-    testsets(a, IntervalSet(first(b.items)))
+    testsets(IntervalSet(lowerbound(a.items)), b)
+    testsets(a, IntervalSet(lowerbound(b.items)))
 
     a = IntervalSet(Interval{Open, Closed}.(starts, ends))
     b = IntervalSet(Interval{Open, Closed}.(starts .+ offsets, ends .+ offsets))
-    @test Intervals.endpoint_tracking(a, b) isa Intervals.TrackStatically
-    @test Intervals.endpoint_tracking(IntervalSet(first(a.items)), b) isa Intervals.TrackStatically
-    @test Intervals.endpoint_tracking(a, IntervalSet(first(b.items))) isa Intervals.TrackStatically
+    @test Intervals.bound_tracking(a, b) isa Intervals.TrackStatically
+    @test Intervals.bound_tracking(IntervalSet(lowerbound(a.items)), b) isa Intervals.TrackStatically
+    @test Intervals.bound_tracking(a, IntervalSet(lowerbound(b.items))) isa Intervals.TrackStatically
     testsets(a, b)
-    testsets(IntervalSet(first(a.items)), b)
-    testsets(a, IntervalSet(first(b.items)))
+    testsets(IntervalSet(lowerbound(a.items)), b)
+    testsets(a, IntervalSet(lowerbound(b.items)))
 
-    randint(x::Interval) = Interval{rand_bound_type(rng), rand_bound_type(rng)}(first(x), last(x))
-    leftint(x::Interval) = Interval{Closed, Open}(first(x), last(x))
-    rightint(x::Interval) = Interval{Open, Closed}(first(x), last(x))
+    randint(x::Interval) = Interval{rand_bound_type(rng), rand_bound_type(rng)}(lowerbound(x), upperbound(x))
+    lowerint(x::Interval) = Interval{Closed, Open}(lowerbound(x), upperbound(x))
+    upperint(x::Interval) = Interval{Open, Closed}(lowerbound(x), upperbound(x))
 
     a = IntervalSet(Interval{Closed, Open}.(starts, ends))
     b = IntervalSet(Interval{Closed, Open}.(starts .+ offsets, ends .+ offsets))
     testsets(a, IntervalSet(randint.(b.items)))
-    testsets(IntervalSet(first(a.items)), IntervalSet(randint.(b.items)))
-    testsets(a, IntervalSet(leftint.(first(b.items))))
-    testsets(a, IntervalSet(rightint.(b.items)))
-    testsets(IntervalSet(first(a.items)), IntervalSet(rightint.(b.items)))
-    testsets(a, IntervalSet(rightint.(first(b.items))))
+    testsets(IntervalSet(lowerbound(a.items)), IntervalSet(randint.(b.items)))
+    testsets(a, IntervalSet(lowerint.(lowerbound(b.items))))
+    testsets(a, IntervalSet(upperint.(b.items)))
+    testsets(IntervalSet(lowerbound(a.items)), IntervalSet(upperint.(b.items)))
+    testsets(a, IntervalSet(upperint.(lowerbound(b.items))))
 end
