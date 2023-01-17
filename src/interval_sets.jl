@@ -482,24 +482,28 @@ function find_intersections(x::AbstractVector{<:AbstractInterval}, y::AbstractVe
     tracking = endpoint_tracking(x, y)
     lt = intersection_isless_fn(tracking)
     results = Vector{Vector{Int}}(undef, length(x))
-    
+
+    find_intersections_helper!(results, x, y, lt)
+end
+
+function find_intersections_helper!(results, x, y, lt)
     # Strategy:
     # two binary searches per interval `I` in `x`
     # * identify the set of intervals in `y` that start during-or-after `I`
     # * identify the set of intervals in `y` that stop before-or-during `I`
     # * intersect them
     lefts = LeftEndpoint.(y)
-    lefts_perm = sortperm(lefts; lt)
-    lefts_sorted = lefts[lefts_perm]
+    lefts_order = sortperm(lefts; lt)
+    lefts_sorted = lefts[lefts_order]
 
     # Sneaky performance optimization (makes a huge difference!)
     # Rather than sorting `rights` relative to `y`, we sort it relative to `lefts`.
     # This allows us to work in the `lefts` frame of reference until the very end.
-    # In particular, when we intersect the sets of intervals obtained from lefts and from stops,
+    # In particular, when we intersect the sets of intervals obtained from lefts and from rights,
     # the `lefts` set can be kept as a `UnitRange`, making the intersection *much* faster.
-    rights = RightEndpoint.(y[lefts_perm])
-    rights_perm = sortperm(rights; lt)
-    rights_sorted = rights[rights_perm]
+    rights = RightEndpoint.(y[lefts_order])
+    rights_order = sortperm(rights; lt)
+    rights_sorted = rights[rights_order]
     y_len = length(rights_sorted)
 
     for (i, I) in enumerate(x)
@@ -510,8 +514,8 @@ function find_intersections(x::AbstractVector{<:AbstractInterval}, y::AbstractVe
             continue
         end
 
-        # find all the stops which occur after the start of `I`
-        idx_last = searchsortedfirst(stops_sorted, LeftEndpoint(I); lt)
+        # find all the rights which occur after the start of `I`
+        idx_last = searchsortedfirst(rights_sorted, LeftEndpoint(I); lt)
 
         if idx_last > y_len
             results[i] = Int[]
@@ -520,13 +524,13 @@ function find_intersections(x::AbstractVector{<:AbstractInterval}, y::AbstractVe
 
         # Working in "lefts" frame of reference
         lefts_before_or_during = 1:idx_first
-        rights_during_or_after = @views rights_perm[idx_last:end]
+        rights_during_or_after = @views rights_order[idx_last:end]
 
         # Intersect them
         r = intersect(lefts_before_or_during, rights_during_or_after)
 
         # *Now* go back to y's sorting order, post-intersection.
-        results[i] = lefts_perm[r]
+        results[i] = lefts_order[r]
     end
     return results
 end
